@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Login | Imperial Gaming Intelligence</title>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/8RmOKbK.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --bg-dark: #020617;
+            --card-bg: rgba(15, 23, 42, 0.95);
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: var(--text-main);
+        }
+
+        /* Animated Background */
+        .bg-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #020617 100%);
+            z-index: -1;
+        }
+
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+            opacity: 0.2;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            from {
+                background-position: 0 0;
+            }
+
+            to {
+                background-position: 0 40px;
+            }
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            width: 100%;
+            max-width: 440px;
+            padding: 48px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5), 0 0 20px var(--primary-glow);
+            text-align: center;
+            animation: cardEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes cardEntrance {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Secure Scanning Line */
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            animation: scan 3s linear infinite;
+            z-index: 10;
+            opacity: 0.5;
+        }
+
+        @keyframes scan {
+            0% {
+                top: 0;
+            }
+
+            100% {
+                top: 100%;
+            }
+        }
+
+        .logo {
+            height: 70px;
+            margin-bottom: 24px;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 0 10px var(--primary-glow));
+        }
+
+        .title {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .security-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: white;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.07);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 20px var(--primary-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            background: #2563eb;
+            box-shadow: 0 8px 25px var(--primary-glow);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        #auth-status {
+            margin-top: 24px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-validating {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .trust-badges {
+            margin-top: 40px;
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            opacity: 0.5;
+        }
+
+        .badge-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            gap: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-glow"></div>
+    <div class="grid-bg"></div>
+
+    <div class="login-card">
+        <div class="scan-line"></div>
+
+        <img src="https://i.imgur.com/8RmOKbK.png" alt="Imperial Logo" class="logo">
+        <h1 class="title">Void Tracker</h1>
+
+        <div class="security-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            End-to-End Encrypted
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Identity Access Code</label>
+            <input type="text" id="username" class="form-input" placeholder="Enter identifier" autocomplete="off"
+                value="admin">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 32px;">
+            <label class="form-label">Encryption Key</label>
+            <input type="password" id="password" class="form-input" placeholder="••••••••" value="admin123">
+        </div>
+
+        <button class="submit-btn" id="loginBtn" onclick="initiateSecureLogin()">
+            <span>Authorize Session</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"></path>
+                <path d="m12 5 7 7-7 7"></path>
+            </svg>
+        </button>
+
+        <div id="auth-status"></div>
+
+        <div class="trust-badges">
+            <div class="badge-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                ISO 27001
+            </div>
+            <div class="badge-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="m9 12 2 2 4-4"></path>
+                </svg>
+                SOC2 TYPE II
+            </div>
+            <div class="badge-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 20h20"></path>
+                    <path d="M7 33v-3a5 5 0 0 1 10 0v3"></path>
+                    <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+                </svg>
+                HIPAA COMPLIANT
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SECURE_TOKEN = "0192023a7bbd73250516f069df18b500";
+        const SECURE_ID = "21232f297a57a5a743894a0e4a801fc3";
+
+        if (sessionStorage.getItem('access_token')) {
+            window.location.href = 'dashboard.html';
+        }
+
+        function initiateSecureLogin() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const status = document.getElementById('auth-status');
+            const btn = document.getElementById('loginBtn');
+
+            if (!u || !p) return;
+
+            btn.style.opacity = "0.7";
+            btn.disabled = true;
+            status.style.display = "block";
+            status.className = "status-validating";
+            status.innerText = "Initiating handshake...";
+
+            setTimeout(() => {
+                status.innerText = "Encrypting packet data...";
+                setTimeout(() => {
+                    const uHash = CryptoJS.MD5(u).toString();
+                    const pHash = CryptoJS.MD5(p).toString();
+
+                    if (uHash === SECURE_ID && pHash === SECURE_TOKEN) {
+                        status.style.color = "#10b981";
+                        status.innerText = "Access granted. Finalizing session...";
+                        sessionStorage.setItem('access_token', btoa(u + ":" + Date.now()));
+
+                        document.querySelector('.login-card').style.transform = "scale(0.95) translateY(-20px)";
+                        document.querySelector('.login-card').style.opacity = "0";
+                        setTimeout(() => { window.location.href = 'dashboard.html'; }, 500);
+                    } else {
+                        status.className = "status-error";
+                        status.innerText = "Access Denied: Invalid Authentication Block";
+                        btn.style.opacity = "1";
+                        btn.disabled = false;
+                        setTimeout(() => { status.style.display = "none"; }, 3000);
+                    }
+                }, 1000);
+            }, 800);
+        }
+    </script>
+</body>
+
+</html>
