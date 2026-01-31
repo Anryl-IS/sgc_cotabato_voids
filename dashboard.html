@@ -494,30 +494,49 @@
         }
 
         async function loadData() {
-            const p1 = "https://corsproxy.io/?" + encodeURIComponent(atob(_s1) + Date.now());
-            const p2 = "https://corsproxy.io/?" + encodeURIComponent(atob(_s2) + Date.now());
+            const stream1 = atob(_s1) + Date.now();
+            const stream2 = atob(_s2) + Date.now();
 
-            Papa.parse(p1, {
-                download: true,
-                header: false,
-                skipEmptyLines: true,
-                complete: r => { if (r.data) { processData(r.data); renderAnalytics(); } },
-                error: (err) => console.error("Stream 1 Error:", err)
-            });
+            // Primary: AllOrigins (Very stable), Fallback: Direct (Sheets sometimes allow it)
+            const getProxyUrl = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
 
-            Papa.parse(p2, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: r => {
-                    if (r.data) { processSummary(r.data); }
-                    document.getElementById('loading').classList.add('hidden');
-                },
-                error: (err) => {
-                    console.error("Stream 2 Error:", err);
-                    document.getElementById('loading').classList.add('hidden');
-                }
-            });
+            const tryFetch = (url, isHeader, callback, errorLabel) => {
+                Papa.parse(getProxyUrl(url), {
+                    download: true,
+                    header: isHeader,
+                    skipEmptyLines: true,
+                    complete: r => {
+                        if (r.data && r.data.length > 0) {
+                            callback(r.data);
+                        } else {
+                            // Secondary fallback if proxy returns empty or fails
+                            Papa.parse(url, {
+                                download: true,
+                                header: isHeader,
+                                skipEmptyLines: true,
+                                complete: r2 => { if (r2.data) callback(r2.data); },
+                                error: (e) => console.error(`${errorLabel} Final Error:`, e)
+                            });
+                        }
+                    },
+                    error: (err) => {
+                        console.warn(`${errorLabel} Proxy failed, trying direct...`);
+                        Papa.parse(url, {
+                            download: true,
+                            header: isHeader,
+                            skipEmptyLines: true,
+                            complete: r => { if (r.data) callback(r.data); },
+                            error: (e) => console.error(`${errorLabel} Direct fallback failed:`, e)
+                        });
+                    }
+                });
+            };
+
+            tryFetch(stream1, false, (data) => { processData(data); renderAnalytics(); }, "Stream 1");
+            tryFetch(stream2, true, (data) => {
+                processSummary(data);
+                document.getElementById('loading').classList.add('hidden');
+            }, "Stream 2");
         }
 
         function processData(data) {
@@ -597,7 +616,7 @@
                 });
                 spvrs.push({ name: sec.title.replace('SPVR-', ''), amt: sAmt, rec: sRec });
             });
-            document.getElementById('statsSummary').innerHTML = `<div class="metric-card"><div class="metric-label">Operational Exposure</div><div class="metric-value">₱${spvrs.reduce((a, b) => a + b.amt, 0).toLocaleString()}</div></div><div class="metric-card"><div class="metric-label">Logged Reciepts</div><div class="metric-value">${spvrs.reduce((a, b) => a + b.rec, 0).toLocaleString()}</div></div><div class="metric-card"><div class="metric-label">Active SPVRs</div><div class="metric-value">${spvrs.length} UNITS</div></div>`;
+            document.getElementById('statsSummary').innerHTML = `<div class="metric-card"><div class="metric-label">Operational Exposure</div><div class="metric-value">₱${spvrs.reduce((a, b) => a + b.amt, 0).toLocaleString()}</div></div><div class="metric-card"><div class="metric-label">Logged Receipts</div><div class="metric-value">${spvrs.reduce((a, b) => a + b.rec, 0).toLocaleString()}</div></div><div class="metric-card"><div class="metric-label">Active SPVRs</div><div class="metric-value">${spvrs.length} UNITS</div></div>`;
             const rL = (id, items) => { document.getElementById(id).innerHTML = items.map((t, i) => `<div class="rank-item"><div class="rank-info"><div class="rank-num">${i + 1}</div><div style="font-weight:700">${t.name}</div></div><div class="currency">₱${t.amt.toLocaleString()}</div></div>`).join(''); };
             rL('topTellers', [...tellers].sort((a, b) => b.amt - a.amt).slice(0, 10));
             rL('topSupervisors', [...spvrs].sort((a, b) => b.amt - a.amt));
