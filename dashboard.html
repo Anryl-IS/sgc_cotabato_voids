@@ -384,6 +384,50 @@
             }
         }
 
+        /* --- Accordion Styles --- */
+        .card-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            user-select: none;
+        }
+
+        .card-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+        }
+
+        .card-content.expanded {
+            max-height: 5000px;
+            opacity: 1;
+            padding-top: 32px;
+        }
+
+        .chevron {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        .card-header.active .chevron {
+            transform: rotate(180deg);
+            color: var(--primary);
+            opacity: 1;
+        }
+
+        .card-header:hover .chevron {
+            opacity: 1;
+            transform: translateY(2px);
+        }
+
+        .card-header.active:hover .chevron {
+            transform: rotate(180deg) translateY(-2px);
+        }
+
         .hidden {
             display: none !important;
         }
@@ -503,6 +547,12 @@
             document.getElementById(`btn-${t}`).classList.add('active');
         }
 
+        function toggleSection(header) {
+            header.classList.toggle('active');
+            const content = header.nextElementSibling;
+            content.classList.toggle('expanded');
+        }
+
         async function loadData() {
             const stream1 = atob(_s1) + Date.now();
             const stream2 = atob(_s2) + Date.now();
@@ -579,7 +629,31 @@
                 tRec += rec; tAmt += amt;
                 return `<tr><td style="font-weight:700;color:#fff">${r[0]}</td><td style="color:var(--text-muted)">${r[1]}</td><td style="text-align:center">${rec}</td><td style="text-align:right" class="currency">₱${amt.toLocaleString()}</td></tr>`;
             }).join('');
-            card.innerHTML = `<div class="card-title">${title}</div><table><thead><tr><th>Staff ID</th><th>Location</th><th style="text-align:center">Receipts</th><th style="text-align:right">Total Exposure</th></tr></thead><tbody>${html}</tbody></table><div class="total-footer">Unit Exposure: <span class="value">₱${tAmt.toLocaleString()}</span></div>`;
+
+            card.innerHTML = `
+                <div class="card-header" onclick="toggleSection(this)">
+                    <div class="card-title" style="margin-bottom: 0;">${title}</div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <span class="currency" style="font-size: 14px; opacity: 0.9;">₱${tAmt.toLocaleString()}</span>
+                        <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Staff ID</th>
+                                <th>Location</th>
+                                <th style="text-align:center">Receipts</th>
+                                <th style="text-align:right">Total Exposure</th>
+                            </tr>
+                        </thead>
+                        <tbody>${html}</tbody>
+                    </table>
+                    <div class="total-footer">Unit Exposure: <span class="value">₱${tAmt.toLocaleString()}</span></div>
+                </div>`;
             container.appendChild(card);
         }
 
@@ -621,13 +695,26 @@
                 let sAmt = 0, sRec = 0;
                 sec.rows.forEach(r => {
                     const rec = parseInt(String(r[2]).replace(/,/g, '')) || 0, amt = parseFloat(String(r[3] || "0").replace(/[₱,]/g, '')) || 0;
-                    tellers.push({ name: r[0], amt }); outlets[r[1]] = (outlets[r[1]] || 0) + amt;
+                    tellers.push({ name: r[0], amt, spvr: sec.title.replace('SPVR-', '') }); outlets[r[1]] = (outlets[r[1]] || 0) + amt;
                     sAmt += amt; sRec += rec;
                 });
                 spvrs.push({ name: sec.title.replace('SPVR-', ''), amt: sAmt, rec: sRec });
             });
             document.getElementById('statsSummary').innerHTML = `<div class="metric-card"><div class="metric-label">Operational Exposure</div><div class="metric-value">₱${spvrs.reduce((a, b) => a + b.amt, 0).toLocaleString()}</div></div><div class="metric-card"><div class="metric-label">Logged Receipts</div><div class="metric-value">${spvrs.reduce((a, b) => a + b.rec, 0).toLocaleString()}</div></div><div class="metric-card"><div class="metric-label">Active SPVRs</div><div class="metric-value">${spvrs.length} UNITS</div></div>`;
-            const rL = (id, items) => { document.getElementById(id).innerHTML = items.map((t, i) => `<div class="rank-item"><div class="rank-info"><div class="rank-num">${i + 1}</div><div style="font-weight:700">${t.name}</div></div><div class="currency">₱${t.amt.toLocaleString()}</div></div>`).join(''); };
+            const rL = (id, items) => {
+                document.getElementById(id).innerHTML = items.map((t, i) => `
+                    <div class="rank-item">
+                        <div class="rank-info">
+                            <div class="rank-num">${i + 1}</div>
+                            <div>
+                                <div style="font-weight:700">${t.name}</div>
+                                ${t.spvr ? `<div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-top: 2px;">SPVR: ${t.spvr}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="currency">₱${t.amt.toLocaleString()}</div>
+                    </div>`
+                ).join('');
+            };
             rL('topTellers', [...tellers].sort((a, b) => b.amt - a.amt).slice(0, 10));
             rL('topSupervisors', [...spvrs].sort((a, b) => b.amt - a.amt));
             rL('topOutlets', Object.entries(outlets).map(([name, amt]) => ({ name, amt })).sort((a, b) => b.amt - a.amt).slice(0, 10));
